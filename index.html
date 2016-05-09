@@ -1,0 +1,63 @@
+<!doctype html>
+<html ng-app="app">
+<head>
+    <meta charset="utf-8">
+    <meta name="author" content="Prashant Palikhe"/>
+    <meta name="viewport" content="width=device-width,minimum-scale=1">
+    <meta name="theme-color" content="#EA2663">
+    <title>Angular drawer</title>
+    <!--<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">-->
+    <link href="./styles.css" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            padding: 0;
+            margin: 0;
+            background: #FAFAFA;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <button class="show-drawer">Menu</button>
+</header>
+
+<ng-drawer position="left">
+    <nav class="drawer-nav">
+        <button class="drawer__hide">Close</button>
+
+        <ul class="drawer__content">
+            <li>One</li>
+            <li>Two</li>
+            <li>Three</li>
+        </ul>
+    </nav>
+</ng-drawer>
+
+<script src="./angular.js"></script>
+<script src='./src/drawer.module.js'></script>
+<script src='./src/drawer.controller.js'></script>
+<script src='./src/drawer.directive.js'></script>
+
+<script>
+    (function () {
+        'use strict';
+
+        angular
+            .module('app', ['ngDrawer']);
+    })();
+</script>
+</body>
+</html>
