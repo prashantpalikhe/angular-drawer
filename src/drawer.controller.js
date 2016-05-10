@@ -9,7 +9,7 @@
         .module('ngDrawer')
         .controller('DrawerController', DrawerController);
 
-    function DrawerController($element, $rootScope, $q) {
+    function DrawerController($element, $rootScope) {
         var vm = this;
 
         var element = $element[0];
@@ -41,8 +41,6 @@
             DRAWER_SHOWN: 'drawer.shown',
             DRAWER_HIDDEN: 'drawer.hidden'
         };
-
-        vm.isShown = false;
 
         vm.showDrawer = showDrawer;
         vm.hideDrawer = hideDrawer;
@@ -77,27 +75,14 @@
          * @methodOf ngDrawer.DrawerController
          *
          * @description Shows the drawer by animating the drawer in.
-         * @return {*}
          */
         function showDrawer() {
-            if (vm.isShown) {
-                return $q.when();
-            } else {
-                return $q(function showDrawerPromiseResolver(resolve) {
-                    enableAnimation();
+            enableAnimation();
 
-                    $drawer.addClass(visibilityClass);
-                    $backdrop.addClass(visibilityClass);
+            $drawer.addClass(visibilityClass);
+            $backdrop.addClass(visibilityClass);
 
-                    $drawer.one('transitionend', function onDrawerShowTransitionEnd () {
-                        vm.isShown = true;
-
-                        resolve();
-
-                        $rootScope.$broadcast(EVENTS.DRAWER_SHOWN);
-                    });
-                });
-            }
+            $rootScope.$broadcast(EVENTS.DRAWER_SHOWN);
         }
 
         /**
@@ -106,27 +91,14 @@
          * @methodOf ngDrawer.DrawerController
          *
          * @description Hides the drawer by animating the drawer out.
-         * @return {*}
          */
         function hideDrawer() {
-            if (!vm.isShown) {
-                return $q.when();
-            } else {
-                return $q(function hideDrawerPromiseResolver(resolve) {
-                    enableAnimation();
+            enableAnimation();
 
-                    $drawer.removeClass(visibilityClass);
-                    $backdrop.removeClass(visibilityClass);
+            $drawer.removeClass(visibilityClass);
+            $backdrop.removeClass(visibilityClass);
 
-                    $drawer.one('transitionend', function onDrawerHideTransitionEnd () {
-                        vm.isShown = false;
-
-                        resolve();
-
-                        $rootScope.$broadcast(EVENTS.DRAWER_HIDDEN);
-                    });
-                });
-            }
+            $rootScope.$broadcast(EVENTS.DRAWER_HIDDEN);
         }
 
         function onTouchStart(event) {
