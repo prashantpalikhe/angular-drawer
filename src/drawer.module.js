@@ -2,5 +2,5 @@
     'use strict';
 
     angular
-        .module('ngDrawer', []);
+        .module('drawer', []);
 })();

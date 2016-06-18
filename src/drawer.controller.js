@@ -1,229 +1,516 @@
 /**
  * @ngdoc controller
- * @name ngDrawer.DrawerController
+ * @name DrawerController
+ *
+ * @description
+ * This is the controller for the ngDrawer component.
  */
 (function () {
     'use strict';
 
     angular
-        .module('ngDrawer')
+        .module('drawer')
         .controller('DrawerController', DrawerController);
 
-    function DrawerController($element, $rootScope) {
+    DrawerController.$inject = [
+        '$scope',
+        '$element',
+        '$document',
+        '$window'
+    ];
+
+    function DrawerController($scope, $element, $document, $window) {
         var vm = this;
-
         var element = $element[0];
-
-        var $drawer   = angular.element(element.querySelector('aside'));
-        var $backdrop = angular.element(element.querySelector('.drawer-backdrop'));
-        var $edge     = angular.element(element.querySelector('.drawer-edge'));
-
-        var drawerWidth = $drawer[0].offsetWidth;
-
+        var docElement = angular.element($document[0].documentElement);
+        var drawer = angular.element(element.querySelector('.drawer'));
+        var backdrop = angular.element(element.querySelector('.drawer-backdrop'));
+        var drawerWidth = drawer[0].offsetWidth;
+        var primarySwipeAxis = null;
+        var isOpened = false;
+        var isSwiping = false;
+        var startX;
+        var startTime;
         var startTouch;
-        var previousTouch;
-        var currentTouch;
+        var startOffset;
         var translateX;
         var deltaX;
-        var direction;
-        var startOffset;
-
-        var animatableClass = 'is-animatable';
-        var visibilityClass = 'is-visible';
-        var DIRECTIONS = {
+        var animationFrameId;
+        var transitionEndCallback;
+        var THRESHOLD = {
+                VELOCITY: 0.5, // px/ms
+                DISTANCE: 10  // px
+            };
+        var CLASS = {
+            OPEN: 'is-open',
+            ANIMATABLE: 'is-animatable',
+            IGNORE_SWIFTCLICK: 'swiftclick-ignore'
+        };
+        var DIRECTION = {
             LEFT: 'left',
-            RIGHT: 'right',
-            UP: 'up',
-            DOWN: 'down'
+            RIGHT: 'right'
+        };
+        var SWIPE_AXIS = {
+            X: 'x',
+            Y: 'y'
+        };
+        var transformKeys = [
+            'webkitTransform',
+            'transform',
+            '-webkit-transform',
+            'webkit-transform',
+            '-moz-transform',
+            'moz-transform',
+            'MozTransform',
+            'mozTransform',
+            'msTransform'
+        ];
+        var transitionKeys = [
+            'webkitTransition',
+            'mozTransition',
+            'msTransition',
+            'transition'
+        ];
+        var CSS = {
+            TRANSFORM: getTransformProperty(),
+            TRANSITION_END: getTransitionEvent()
         };
 
-        var EVENTS = {
-            DRAWER_SHOWN: 'drawer.shown',
-            DRAWER_HIDDEN: 'drawer.hidden'
-        };
-
-        vm.showDrawer = showDrawer;
-        vm.hideDrawer = hideDrawer;
+        vm.$onInit = onInit;
+        vm.$onChanges = onChanges;
         vm.$onDestroy = onDestroy;
 
-        activate();
-
         /**
-         * @private
+         * @ngdoc method
+         * @name onInit
+         * @methodOf DrawerController
          *
-         * @description Activation logic of the component. Binds event handlers on
-         * component elements.
+         * @description
+         * Drawer initialization routine.
          */
-        function activate() {
-            $drawer.on('touchstart', onTouchStart);
-            $drawer.on('touchmove', onTouchMove);
-            $drawer.on('touchend', onTouchEnd);
-
-            $backdrop.on('touchstart', onTouchStart);
-            $backdrop.on('touchmove', onTouchMove);
-            $backdrop.on('touchend', onTouchEnd);
-            $backdrop.on('click', hideDrawer);
-
-            $edge.on('touchstart', onTouchStart);
-            $edge.on('touchmove', onTouchMove);
-            $edge.on('touchend', onTouchEnd);
+        function onInit() {
+            bindEvents();
         }
 
         /**
          * @ngdoc method
-         * @name showDrawer
-         * @methodOf ngDrawer.DrawerController
+         * @name onChanges
+         * @methodOf DrawerController
          *
-         * @description Shows the drawer by animating the drawer in.
-         */
-        function showDrawer() {
-            enableAnimation();
-
-            $drawer.addClass(visibilityClass);
-            $backdrop.addClass(visibilityClass);
-
-            $rootScope.$broadcast(EVENTS.DRAWER_SHOWN);
-        }
-
-        /**
-         * @ngdoc method
-         * @name hideDrawer
-         * @methodOf ngDrawer.DrawerController
+         * @description
+         * Called when any bindings to the drawer component changes.
          *
-         * @description Hides the drawer by animating the drawer out.
+         * @param {object} changesObj Changes object.
          */
-        function hideDrawer() {
-            enableAnimation();
+        function onChanges(changesObj) {
+            if (angular.isDefined(changesObj.open) && changesObj.open.currentValue === !isOpened) {
+                if (changesObj.open.currentValue === true) {
+                    openDrawer();
 
-            $drawer.removeClass(visibilityClass);
-            $backdrop.removeClass(visibilityClass);
-
-            $rootScope.$broadcast(EVENTS.DRAWER_HIDDEN);
-        }
-
-        function onTouchStart(event) {
-            disableAnimation();
-
-            startTouch = event.touches[0];
-            previousTouch = startTouch;
-
-            startOffset = $drawer[0].getBoundingClientRect().left;
-        }
-
-        function onTouchMove(event) {
-            event.stopPropagation();
-
-            currentTouch = event.touches[0];
-            deltaX = currentTouch.pageX - startTouch.pageX;
-            direction = getSwipeDirection(previousTouch, currentTouch);
-
-            previousTouch = currentTouch;
-
-            requestAnimationFrame(update);
-        }
-
-        function onTouchEnd() {
-            $drawer[0].style.transform = '';
-            $backdrop[0].style.opacity = '';
-
-            if (translateX <= 0) {
-                if (Math.abs(translateX) > Math.floor(drawerWidth / 2)) {
-                    hideDrawer();
                 } else {
-                    showDrawer();
+                    closeDrawer();
                 }
-            }
-
-            deltaX = 0;
-        }
-
-        /**
-         * Prepares another frame
-         */
-        function update() {
-            if (!deltaX) {
-                return;
-            }
-
-            translateX = Math.min(startOffset + deltaX, 0);
-
-            if (direction === 'left' || direction === 'right') {
-
-                $drawer[0].style.transform = 'translate3d(' + translateX + 'px, 0, 0)';
-                $backdrop[0].style.opacity = (drawerWidth + translateX) / drawerWidth;
-
-                requestAnimationFrame(update);
-            }
-        }
-
-        /**
-         * @private
-         * @description Enables animating of drawer and backdrop's style values.
-         */
-        function enableAnimation() {
-            $drawer.addClass(animatableClass);
-            $backdrop.addClass(animatableClass);
-
-            $drawer.on('transitionend', onTransitionEnd);
-        }
-
-        /**
-         * @private
-         * @description Disables animating of drawer and backdrop's style values.
-         */
-        function disableAnimation() {
-            $drawer.removeClass(animatableClass);
-            $backdrop.removeClass(animatableClass);
-
-            $drawer.on('transitionend', onTransitionEnd);
-        }
-
-        function onTransitionEnd() {
-            $drawer.removeClass(animatableClass);
-            $backdrop.removeClass(animatableClass);
-
-            $drawer.off('transitionend', onTransitionEnd);
-        }
-
-        /**
-         * @private
-         * @description Determines how the user is swiping based on two touch points.
-         *
-         * @param previousTouch
-         * @param currentTouch
-         * @returns {string}
-         */
-        function getSwipeDirection(previousTouch, currentTouch) {
-            var x = Math.abs(previousTouch.pageX - currentTouch.pageX);
-            var y = Math.abs(previousTouch.pageY - currentTouch.pageY);
-
-            if (x >= y) {
-                return currentTouch.pageX > previousTouch.pageX ? DIRECTIONS.RIGHT : DIRECTIONS.LEFT;
-            } else {
-                return currentTouch.pageY > previousTouch.pageY ? DIRECTIONS.DOWN : DIRECTIONS.UP;
             }
         }
 
         /**
          * @ngdoc method
          * @name onDestroy
-         * @methodOf ngDrawer.DrawerController
+         * @methodOf DrawerController
          *
-         * @description Cleanup routine when the component is destroyed.
+         * @description
+         * Drawer destruction routine.
          */
         function onDestroy() {
-            $drawer.off('touchstart', onTouchStart);
-            $drawer.off('touchmove', onTouchMove);
-            $drawer.off('touchend', onTouchEnd);
+            unbindEvents();
+            cancelPendingUpdate();
+            removeTransitionEndCallback();
+        }
 
-            $backdrop.off('touchstart', onTouchStart);
-            $backdrop.off('touchmove', onTouchMove);
-            $backdrop.off('touchend', onTouchEnd);
-            $backdrop.off('click', hideDrawer);
+        /**
+         * @private
+         *
+         * @description
+         * Binds event handlers to the drawer elements.
+         */
+        function bindEvents() {
+            $element.on('touchstart', onTouchStart);
+            $element.on('touchmove', onTouchMove);
+            $element.on('touchend', onTouchEnd);
+            $element.on('touchcancel', onTouchEnd);
 
-            $edge.off('touchstart', onTouchStart);
-            $edge.off('touchmove', onTouchMove);
-            $edge.off('touchend', onTouchEnd);
+            backdrop.on('click', closeDrawer);
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Unbinds event handlers from the drawer elements.
+         */
+        function unbindEvents() {
+            $element.off('touchstart', onTouchStart);
+            $element.off('touchmove', onTouchMove);
+            $element.off('touchend', onTouchEnd);
+            $element.off('touchcancel', onTouchEnd);
+
+            backdrop.off('click', closeDrawer);
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Opens the drawer by animating the drawer in.
+         */
+        function openDrawer() {
+            enableAnimation();
+
+            if (isOpened) {
+                return;
+            }
+
+            isOpened = true;
+
+            drawer.addClass(CLASS.OPEN);
+            backdrop.addClass(CLASS.OPEN);
+
+            addTransitionEndCallback(function onDrawerOpened() {
+                if (angular.isFunction(vm.onOpened)) {
+                    $scope.$apply(vm.onOpened);
+                }
+            });
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Closes the drawer by animation the drawer out.
+         */
+        function closeDrawer() {
+            enableAnimation();
+
+            if (!isOpened) {
+                return;
+            }
+
+            isOpened = false;
+
+            drawer.removeClass(CLASS.OPEN);
+            backdrop.removeClass(CLASS.OPEN);
+
+            addTransitionEndCallback(function onDrawerClosed() {
+                if (angular.isFunction(vm.onClosed)) {
+                    $scope.$apply(vm.onClosed);
+                }
+            });
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Enables transition support on drawer and backdrop.
+         */
+        function enableAnimation() {
+            drawer.addClass(CLASS.ANIMATABLE);
+            backdrop.addClass(CLASS.ANIMATABLE);
+
+            drawer.one(CSS.TRANSITION_END, disableAnimation);
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Disables transition support on drawer and backdrop.
+         */
+        function disableAnimation() {
+            drawer.removeClass(CLASS.ANIMATABLE);
+            backdrop.removeClass(CLASS.ANIMATABLE);
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Invoked when user starts dragging the drawer.
+         */
+        function onTouchStart(event) {
+            docElement.addClass(CLASS.IGNORE_SWIFTCLICK);
+
+            startTouch = getNormalizedTouch(event);
+            startX = startTouch.pageX;
+            startTime = Date.now();
+            startOffset = drawer[0].getBoundingClientRect().left;
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Invoked when user is dragging the drawer.
+         */
+        function onTouchMove(event) {
+            var newTouch = getNormalizedTouch(event),
+                newX = newTouch.pageX,
+                swipingOnXAxis = (getPrimarySwipeAxis(startTouch, newTouch) === SWIPE_AXIS.X);
+
+            cancelPendingUpdate();
+
+            if (swipingOnXAxis) {
+                // Disable vertical scroll
+                event.preventDefault();
+
+                if (!isSwiping && Math.abs(newX - startX) > THRESHOLD.DISTANCE) {
+                    startX = newX;
+
+                    isSwiping = true;
+
+                    disableAnimation();
+                }
+
+                if (isSwiping) {
+                    deltaX = newX - startX;
+
+                    animationFrameId = $window.requestAnimationFrame(update);
+                }
+            }
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Invoked when user stops dragging the drawer.
+         */
+        function onTouchEnd(event) {
+            drawer[0].style[CSS.TRANSFORM] = '';
+            backdrop[0].style.opacity = '';
+
+            if (isSwiping) {
+                isSwiping = false;
+
+                snapDrawer(event);
+            }
+
+            primarySwipeAxis = null;
+
+            docElement.removeClass(CLASS.IGNORE_SWIFTCLICK);
+
+            cancelPendingUpdate();
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Snaps the drawer open or shut depending on the fling velocity
+         * or how far the drawer is dragged.
+         *
+         * @param event
+         */
+        function snapDrawer(event) {
+            var newTouch = getNormalizedTouch(event),
+                deltaTime = Date.now() - startTime,
+                velocityX = Math.abs(deltaX / deltaTime),
+                direction;
+
+            direction = getSwipeDirection(startTouch, newTouch);
+
+            if (velocityX > THRESHOLD.VELOCITY) {
+                // High velocity
+
+                if (direction === DIRECTION.LEFT) {
+                    closeDrawer();
+
+                } else {
+                    openDrawer();
+                }
+
+            } else {
+                // Low velocity
+
+                if (Math.abs(translateX) > Math.floor(drawerWidth / 2)) {
+                    closeDrawer();
+
+                } else {
+                    openDrawer();
+                }
+            }
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Creates next frame.
+         */
+        function update() {
+            // -1 to make sure we always trigger animation
+            translateX = Math.min(startOffset + deltaX, -1);
+
+            drawer[0].style[CSS.TRANSFORM] = 'translate3d(' + translateX + 'px, 0, 0)';
+            backdrop[0].style.opacity = (drawerWidth + translateX) / drawerWidth;
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Cancels any queued update callback.
+         */
+        function cancelPendingUpdate() {
+            if (angular.isDefined(animationFrameId)) {
+                $window.cancelAnimationFrame(animationFrameId);
+            }
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Gets the primary axis on which the user is swiping. If the user has swiped
+         * more than 20px on that axis, we lock the axis.
+         *
+         * @param startTouch
+         * @param newTouch
+         * @returns {string}
+         */
+        function getPrimarySwipeAxis(startTouch, newTouch) {
+            var xDistance,
+                yDistance,
+                swipeAxis;
+
+            // We already figured out which way the user is scrolling
+            if (primarySwipeAxis) {
+                return primarySwipeAxis;
+            }
+
+            xDistance = Math.abs(startTouch.pageX - newTouch.pageX);
+            yDistance = Math.abs(startTouch.pageY - newTouch.pageY);
+
+            swipeAxis = (xDistance < yDistance ? SWIPE_AXIS.Y : SWIPE_AXIS.X);
+
+            if (Math.max(xDistance, yDistance) > 30) {
+                primarySwipeAxis = swipeAxis;
+            }
+
+            return swipeAxis;
+        }
+
+        /**
+         * @private
+         * @description
+         * Determines how the user is swiping based on two touch points.
+         *
+         * @param previousTouch
+         * @param currentTouch
+         * @returns {string}
+         */
+        function getSwipeDirection(previousTouch, currentTouch) {
+            if (currentTouch.pageX > previousTouch.pageX) {
+                return DIRECTION.RIGHT;
+
+            } else {
+                return DIRECTION.LEFT;
+            }
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Gets normalized touch object from native touch event. We need to do this to
+         * create snapshots of touch coordinates.
+         *
+         * @param touchEvent
+         * @returns {{pageX: *, pageY: *}}
+         */
+        function getNormalizedTouch(touchEvent) {
+            var touch;
+
+            if (angular.isDefined(touchEvent.changedTouches) && touchEvent.changedTouches.length > 0) {
+                touch = touchEvent.changedTouches[0];
+
+            } else {
+                touch = touchEvent.touches[0];
+            }
+
+            return {
+                pageX: touch.pageX,
+                pageY: touch.pageY
+            };
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Adds transition end callback to the drawer.
+         *
+         * @param callback
+         */
+        function addTransitionEndCallback(callback) {
+            removeTransitionEndCallback();
+
+            if (angular.isFunction(callback)) {
+                transitionEndCallback = callback;
+
+                drawer.one(CSS.TRANSITION_END, transitionEndCallback);
+            }
+        }
+
+        /**
+         * @private
+         *
+         * @description
+         * Removes transition end callback from the drawer.
+         */
+        function removeTransitionEndCallback() {
+            if (angular.isFunction(transitionEndCallback)) {
+                drawer.off(CSS.TRANSITION_END, transitionEndCallback);
+
+                transitionEndCallback = null;
+            }
+        }
+
+        function getTransformProperty() {
+            for (var i = 0; i < transformKeys.length; i++) {
+                if (angular.isDefined($document[0].documentElement.style[transformKeys[i]])) {
+                    return transformKeys[i];
+                }
+            }
+
+            return '';
+        }
+
+        function getTransitionProperty() {
+            for (var i = 0; i < transitionKeys.length; i++) {
+                if (angular.isDefined($document[0].documentElement.style[transitionKeys[i]])) {
+                    return transitionKeys[i];
+                }
+            }
+
+            return '';
+        }
+
+        function getTransitionEvent() {
+            var transitionProperty = getTransitionProperty(),
+                isWebkit = transitionProperty.indexOf('webkit') !== -1,
+                transitionEvent = '';
+
+            if (transitionProperty !== '') {
+                if (isWebkit) {
+                    transitionEvent = 'webkitTransitionEnd';
+
+                } else {
+                    transitionEvent = 'transitionend';
+                }
+            }
+
+            return transitionEvent;
         }
     }
 })();
