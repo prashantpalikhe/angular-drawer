@@ -476,6 +476,14 @@
             }
         }
 
+        /**
+         * @private
+         * 
+         * @description
+         * Gets transform property for current platform.
+         *
+         * @returns {string}
+         */
         function getTransformProperty() {
             for (var i = 0; i < transformKeys.length; i++) {
                 if (angular.isDefined($document[0].documentElement.style[transformKeys[i]])) {
@@ -486,6 +494,14 @@
             return '';
         }
 
+        /**
+         * @private
+         * 
+         * @description
+         * Gets transition property for current platform.
+         * 
+         * @returns {string}
+         */
         function getTransitionProperty() {
             for (var i = 0; i < transitionKeys.length; i++) {
                 if (angular.isDefined($document[0].documentElement.style[transitionKeys[i]])) {
@@ -496,6 +512,14 @@
             return '';
         }
 
+        /**
+         * @private
+         * 
+         * @description
+         * Gets transition event name for current platform.
+         * 
+         * @returns {string}
+         */
         function getTransitionEvent() {
             var transitionProperty = getTransitionProperty(),
                 isWebkit = transitionProperty.indexOf('webkit') !== -1,

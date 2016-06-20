@@ -6,21 +6,21 @@
     max-width: 280px;
     height: 100%;
     background: white;
-    transform: translate3d(-100%, 0, 0);
+    transform: translate3d(calc(-100% - 20px), 0, 0);
     will-change: transform;
+    box-shadow: 0px 19px 19px 0px rgba(0, 0, 0, 0.3), 0px 15px 6px 0px rgba(0, 0, 0, 0.22);
 }
 
 .drawer.is-animatable {
     transition: 0.13s transform cubic-bezier(0, 0, 0.3, 1);
 }
 
-.drawer.is-visible.is-animatable {
+.drawer.is-open.is-animatable {
     transition: 0.35s transform cubic-bezier(0, 0, 0.3, 1);
 }
 
-.drawer.is-visible {
+.drawer.is-open {
     transform: translate3d(0, 0, 0);
-    /*box-shadow: 0px 19px 19px 0px rgba(0, 0, 0, 0.3), 0px 15px 6px 0px rgba(0, 0, 0, 0.22);*/
 }
 
 .drawer-backdrop {
@@ -40,11 +40,11 @@
     transition: 0.13s opacity cubic-bezier(0, 0, 0.3, 1);;
 }
 
-.drawer-backdrop.is-visible.is-animatable {
+.drawer-backdrop.is-open.is-animatable {
     transition: 0.35s opacity cubic-bezier(0, 0, 0.3, 1);
 }
 
-.drawer-backdrop.is-visible {
+.drawer-backdrop.is-open {
     opacity: 1;
     pointer-events: auto;
 }
