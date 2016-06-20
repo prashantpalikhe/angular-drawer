@@ -43,8 +43,7 @@
             };
         var CLASS = {
             OPEN: 'is-open',
-            ANIMATABLE: 'is-animatable',
-            IGNORE_SWIFTCLICK: 'swiftclick-ignore'
+            ANIMATABLE: 'is-animatable'
         };
         var DIRECTION = {
             LEFT: 'left',
@@ -238,8 +237,6 @@
          * Invoked when user starts dragging the drawer.
          */
         function onTouchStart(event) {
-            docElement.addClass(CLASS.IGNORE_SWIFTCLICK);
-
             startTouch = getNormalizedTouch(event);
             startX = startTouch.pageX;
             startTime = Date.now();
@@ -296,8 +293,6 @@
             }
 
             primarySwipeAxis = null;
-
-            docElement.removeClass(CLASS.IGNORE_SWIFTCLICK);
 
             cancelPendingUpdate();
         }
