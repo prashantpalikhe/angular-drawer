@@ -178,6 +178,8 @@
                 if (angular.isFunction(vm.onOpened)) {
                     $scope.$apply(vm.onOpened);
                 }
+                
+                drawer[0].querySelector('button').focus();
             });
         }
 
